@@ -420,7 +420,6 @@ table.map tr+tr{border-top:1px solid var(--plate-line)}
 <section class="board-wrap" aria-label="Switchboard">
   <div class="plate"><div class="board" id="board"></div></div>
   <div class="board-actions">
-    <button type="button" class="btn warn" id="btn-all">Switch everything on at once</button>
     <button type="button" class="btn primary" id="btn-smart">Let the smart controller try</button>
   </div>
   <ol class="ribbon" id="ribbon" aria-label="Smart controller's order" hidden></ol>
@@ -456,10 +455,6 @@ table.map tr+tr{border-top:1px solid var(--plate-line)}
     </div>
   </div>
 </details>
-
-<footer class="foot">
-  <p>A simplified teaching game based on microgrid black-start research at the SPEL Lab, IIT Gandhinagar.</p>
-</footer>
 </div>
 
 <!-- intro -->
@@ -1078,8 +1073,6 @@ function render(d) {
     b.classList.toggle('is-busy', !!(s && i === GEN && s.on[GEN] && s.dgCrank > 0));
     if (b.disabled === playable) b.disabled = !playable;
   });
-  const allDis = !playable || s.phase !== 'run';
-  if ($('#btn-all').disabled !== allDis) $('#btn-all').disabled = allDis;
   const smartDis = app.state === 'search' || app.state === 'smart';
   if ($('#btn-smart').disabled !== smartDis) $('#btn-smart').disabled = smartDis;
   if (live && live.ctrl === 'smart') $$('#ribbon li').forEach((li, i) => li.classList.toggle('done', i < live.c.k));
@@ -1141,7 +1134,6 @@ function drawChart() {
 $$('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
 $('#btn-start').addEventListener('click', startRound);
 $('#btn-reset').addEventListener('click', toIntro);
-$('#btn-all').addEventListener('click', allAtOnce);
 $('#btn-smart').addEventListener('click', startSmart);
 $('#btn-smart2').addEventListener('click', startSmart);
 $('#btn-again').addEventListener('click', startRound);
