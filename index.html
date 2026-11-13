@@ -1,0 +1,1162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Power Cut! Restart Your Home</title>
+<meta name="description" content="A small game about restarting a home after a power cut, based on microgrid black-start research at the SPEL Lab, IIT Gandhinagar.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700&family=Hind:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --wall:#DDEBE4; --plate:#FBFBF7; --plate-line:#D8D6CE;
+  --ink:#1E2A3A; --ink-soft:#4B5768;
+  --neon:#E8442E; --led:#1FA457; --amber:#E39A0B; --blue:#2E5A96;
+  --lcd:#CFDDBF; --lcd-ink:#1F2B1A;
+  --f-display:'Baloo 2','Trebuchet MS',system-ui,sans-serif;
+  --f-body:'Hind','Segoe UI',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html,body{margin:0}
+body{
+  background-color:var(--wall); color:var(--ink);
+  font-family:var(--f-body); font-size:17px; line-height:1.5;
+  background-image:radial-gradient(rgba(255,255,255,.4) 1px, transparent 1.2px);
+  background-size:7px 7px;
+}
+.wrap{max-width:1180px;margin:0 auto;padding:20px 16px 40px}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.small{font-size:14px;color:var(--ink-soft)}
+
+/* header */
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(36px,5.2vw,54px);line-height:1;margin:0}
+.lede{margin:6px 0 0;max-width:52ch;color:var(--ink-soft)}
+.controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.seg{display:inline-flex;background:var(--plate);border:1px solid var(--plate-line);border-radius:999px;padding:3px}
+.seg button{border:0;background:transparent;font:600 15px var(--f-body);padding:7px 14px;border-radius:999px;color:var(--ink-soft);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#fff}
+.btn{font:600 16px var(--f-body);padding:10px 16px;border-radius:10px;border:2px solid var(--ink);background:transparent;color:var(--ink);cursor:pointer}
+.btn.primary{background:var(--ink);color:#fff}
+.btn.warn{border-color:var(--neon);color:#B4321F;background:rgba(255,255,255,.5)}
+.btn.big{font-size:20px;padding:13px 26px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-quiet{font:600 15px var(--f-body);background:transparent;border:0;color:var(--ink-soft);cursor:pointer;padding:8px 6px;text-decoration:underline;text-underline-offset:3px}
+
+/* stage */
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:16px;align-items:start}
+#scene{display:block;width:100%;height:auto;border-radius:16px;box-shadow:0 12px 26px -16px rgba(30,42,58,.55)}
+.msg{margin:10px 0 0;min-height:3.3em;padding:10px 14px;border-left:5px solid var(--ink-soft);background:rgba(255,255,255,.6);border-radius:0 10px 10px 0}
+.msg.bad{border-color:var(--neon)} .msg.good{border-color:var(--led)} .msg.warn{border-color:var(--amber)}
+
+/* inverter panel */
+.panel{background:#ECEEEF;border:1px solid #C3C9CF;border-radius:18px;padding:14px 16px 18px;box-shadow:inset 0 -3px 0 #D3D8DC}
+.panel-title{margin:0;font-family:var(--f-display);font-weight:700;font-size:21px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.panel-title span{font-family:var(--f-body);font-weight:500;font-size:14px;color:var(--ink-soft)}
+.dial{display:block;width:100%;height:auto;margin-top:4px}
+.dial-t{font:500 11px var(--f-body);fill:var(--ink-soft)}
+.dial-num{font-family:var(--f-display);font-weight:700;font-size:42px;line-height:1;text-align:center;margin:-4px 0 0;font-variant-numeric:tabular-nums}
+.dial-num .unit{font-size:21px;margin-left:2px}
+.dial-cap{text-align:center;margin:4px 0 12px;font-weight:600;min-height:1.5em}
+.dial-cap.is-warn{color:#8F5B00} .dial-cap.is-bad{color:#B4321F}
+.lcd{background:var(--lcd);color:var(--lcd-ink);border-radius:8px;padding:10px 12px;box-shadow:inset 0 2px 5px rgba(0,0,0,.2);font-variant-numeric:tabular-nums}
+.lcd .row{display:flex;justify-content:space-between;gap:8px;font-size:15px;padding:2px 0}
+.lcd .row b{font-weight:600;text-align:right}
+.bar{height:6px;background:rgba(31,43,26,.16);border-radius:3px;overflow:hidden;margin:2px 0 6px}
+.bar i{display:block;height:100%;width:0;background:var(--lcd-ink);transition:width .2s}
+
+/* switchboard */
+.board-wrap{margin-top:18px}
+.plate{position:relative;background:var(--plate);border:1px solid var(--plate-line);border-radius:22px;padding:14px 18px 14px;box-shadow:0 2px 0 #E6E4DC,0 14px 24px -18px rgba(30,42,58,.6)}
+.plate::before,.plate::after{content:"";position:absolute;top:50%;width:13px;height:13px;margin-top:-6px;border-radius:50%;border:1px solid #BDB9AE;background:linear-gradient(135deg,transparent 45%,#A8A497 45%,#A8A497 55%,transparent 55%),radial-gradient(circle at 40% 35%,#fff,#D3D0C6)}
+.plate::before{left:9px} .plate::after{right:9px}
+.board{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:4px;padding:0 14px}
+.sw{display:flex;flex-direction:column;align-items:center;gap:7px;background:transparent;border:0;border-radius:12px;padding:8px 4px 10px;cursor:pointer;color:var(--ink);font:inherit}
+.sw:disabled{cursor:default}
+.neon{width:9px;height:9px;border-radius:50%;background:#BDB7AC;box-shadow:inset 0 1px 1px rgba(0,0,0,.25)}
+.sw.is-on .neon{background:var(--neon);box-shadow:0 0 7px 2px rgba(232,68,46,.55)}
+.sw.is-busy .neon{background:var(--amber);animation:blink .5s linear infinite}
+.rocker{width:42px;height:62px;border-radius:7px;border:1px solid #CBC7BC;background:#F5F4EF;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 2px 0 #DAD7CD}
+.sw:not(:disabled):hover .rocker{border-color:#9F9A8C}
+.rk-top,.rk-bot{flex:1;transition:background .12s,box-shadow .12s}
+.rk-top{background:linear-gradient(#E3E0D6,#EFEDE6);box-shadow:inset 0 3px 5px rgba(0,0,0,.13)}
+.rk-bot{background:linear-gradient(#FFFFFF,#F1EFE8)}
+.sw.is-on .rk-top{background:linear-gradient(#FFFFFF,#F1EFE8);box-shadow:none}
+.sw.is-on .rk-bot{background:linear-gradient(#E3E0D6,#EFEDE6);box-shadow:inset 0 3px 5px rgba(0,0,0,.13)}
+.sw-name{display:flex;align-items:center;justify-content:center;gap:4px;font-weight:600;font-size:15px;line-height:1.2;text-align:center}
+.sw-name svg{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.sw-info{font-size:13px;color:var(--ink-soft);text-align:center;line-height:1.25}
+.sw-info .kick{display:block;color:#B4321F}
+.sw-info .note{display:block}
+.board-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:14px}
+.ribbon,.chips{list-style:none;display:flex;flex-wrap:wrap;gap:6px;padding:0;margin:12px 0 0;counter-reset:step}
+.ribbon{justify-content:center}
+.ribbon li,.chips li{counter-increment:step;background:var(--plate);border:1px solid var(--plate-line);border-radius:999px;padding:3px 12px 3px 5px;font-size:14px;font-weight:600;color:var(--ink-soft)}
+.ribbon li::before,.chips li::before{content:counter(step);display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#E6E4DC;margin-right:6px;font-size:12px}
+.ribbon li.done,.chips li{color:var(--ink);border-color:#B9B5A9}
+.ribbon li.done::before,.chips li::before{background:var(--ink);color:#fff}
+
+/* engineer view */
+details.engineer{margin-top:22px;background:rgba(255,255,255,.6);border-radius:16px;padding:4px 16px}
+details.engineer summary{cursor:pointer;font-weight:600;padding:10px 0}
+.eng-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:24px;padding:4px 0 14px}
+.eng-grid h3{font-family:var(--f-display);font-size:21px;margin:6px 0 6px}
+.stages{margin:0 0 12px;padding-left:1.4em}
+.stages li{padding:2px 0;color:var(--ink-soft)}
+.stages li.is-now{color:var(--ink);font-weight:600}
+.stages li.is-now::marker{color:var(--neon)}
+table.map{border-collapse:collapse;width:100%;font-size:15px}
+table.map th{text-align:left;font-weight:600;padding:6px 10px 6px 0;vertical-align:top;width:42%}
+table.map td{padding:6px 0;color:var(--ink-soft)}
+table.map tr+tr{border-top:1px solid var(--plate-line)}
+#chart{display:block;width:100%;height:320px;background:#fff;border-radius:10px}
+.foot{margin-top:22px;font-size:14px;color:var(--ink-soft)}
+
+/* overlays */
+.overlay{position:fixed;inset:0;background:rgba(30,42,58,.45);display:grid;place-items:center;padding:16px;z-index:10;overflow:auto}
+.card{background:var(--plate);border-radius:18px;max-width:600px;width:100%;padding:24px 24px 22px;box-shadow:0 30px 60px -30px rgba(0,0,0,.55)}
+.card.wide{max-width:700px}
+.card h2{font-family:var(--f-display);font-weight:700;font-size:33px;line-height:1.1;margin:0 0 10px}
+.card p{margin:0 0 12px;max-width:62ch}
+.pick{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:16px 0 20px}
+.progress{height:10px;background:#E6E4DC;border-radius:5px;overflow:hidden}
+.progress i{display:block;height:100%;width:0;background:var(--ink)}
+.count{margin-top:10px}
+.compare{width:100%;border-collapse:collapse;margin:6px 0 12px;font-variant-numeric:tabular-nums}
+.compare th,.compare td{padding:8px 6px;border-bottom:1px solid var(--plate-line);text-align:left;vertical-align:top}
+.compare thead th{font-size:14px;color:var(--ink-soft);font-weight:600}
+.compare td{font-weight:600;white-space:nowrap}
+.compare tbody th{font-weight:500}
+.compare th small{display:block;font-weight:400;font-size:13px;color:var(--ink-soft)}
+.actions{display:flex;flex-wrap:wrap;gap:10px;margin:8px 0 4px}
+.twist{margin-top:18px;padding-top:14px;border-top:2px dashed var(--plate-line)}
+.twist h3{font-family:var(--f-display);font-size:24px;margin:0 0 6px}
+
+/* scene */
+#scene .sky-noon{transition:opacity .6s}
+#scene.is-night .sky-noon{opacity:0}
+#scene .stars,#scene .moon{opacity:0;transition:opacity .6s}
+#scene.is-night .stars,#scene.is-night .moon{opacity:1}
+#scene .sun,#scene .clouds{transition:opacity .6s}
+#scene.is-night .sun,#scene.is-night .clouds{opacity:0}
+#scene .ground{fill:#7FA35A}
+#scene.is-night .ground{fill:#26331F}
+#scene .mains-label{font:600 13px var(--f-body);fill:#1E2A3A}
+#scene.is-night .mains-label{fill:#F4EFD9}
+#scene .wire{stroke:#2B2B2B}
+#scene .mains-x{opacity:1}
+#scene.mains-on .mains-x{opacity:0}
+#scene .room{fill:#A39A88;transition:fill .3s}
+#scene.is-night .room{fill:#2A3250}
+#scene.on-lights .room{fill:#F3E3B9}
+#scene.is-night.on-lights .room{fill:#F7DD98}
+#scene .glow{opacity:0;transition:opacity .3s}
+#scene.on-lights .glow{opacity:.9}
+#scene.is-noon.on-lights .glow{opacity:.35}
+#scene .bulb{fill:#D6D1C4}
+#scene.on-lights .bulb{fill:#FFD24A}
+#scene .blades{transform-box:fill-box;transform-origin:center}
+#scene.on-fans .blades{animation:spin .3s linear infinite}
+#scene .tv-screen{fill:#20242C}
+#scene.on-tv .tv-screen{fill:#6CC3EE;animation:flick 2.4s linear infinite}
+#scene .router-led,#scene .fridge-led,#scene .ac-led,#scene .gen-led{fill:#7C838C}
+#scene.on-tv .router-led{fill:#3DD68C;animation:blink .9s linear infinite}
+#scene.on-fridge .fridge-led,#scene.on-ac .ac-led,#scene.gen-run .gen-led{fill:#3DD68C}
+#scene.gen-crank .gen-led{fill:#F2A516}
+#scene .air{opacity:0}
+#scene.on-ac .air{opacity:1}
+#scene.on-ac .air path{animation:blow 1.3s linear infinite}
+#scene.on-ac .air path:nth-child(2){animation-delay:.4s}
+#scene.on-ac .air path:nth-child(3){animation-delay:.8s}
+#scene .flow{opacity:0}
+#scene.on-pump .flow{opacity:1;animation:dash .6s linear infinite}
+#scene .pv{fill:#22385E;transition:fill .3s}
+#scene.on-solar .pv{stroke:#FFC83D;stroke-width:1.5}
+#scene.sun-flow .pv{fill:#2E5C98}
+#scene .glint{opacity:0}
+#scene.sun-flow .glint{animation:glint 2.6s ease-in-out infinite}
+#scene .beam{opacity:0}
+#scene.sun-flow .beam{opacity:.8;animation:dash .8s linear infinite}
+#scene .puff{opacity:0;transform-box:fill-box;transform-origin:center}
+#scene.gen-run .puff{animation:puff 1.8s ease-out infinite}
+#scene.gen-run .puff:nth-child(2){animation-delay:.6s}
+#scene.gen-run .puff:nth-child(3){animation-delay:1.2s}
+#scene.gen-crank .gen-body{animation:shake .12s linear infinite}
+#scene #inv-led{fill:#7C838C}
+#scene.inv-ok #inv-led{fill:#1FA457}
+#scene.inv-busy #inv-led{fill:#F2A516}
+#scene.inv-alarm #inv-led{fill:#E8442E;animation:blink .35s linear infinite}
+
+@keyframes spin{0%{transform:scaleX(1)}50%{transform:scaleX(-1)}100%{transform:scaleX(1)}}
+@keyframes flick{0%,49%{opacity:1}50%,100%{opacity:.86}}
+@keyframes blink{0%,49%{opacity:1}50%,100%{opacity:.2}}
+@keyframes blow{0%{transform:translateY(-4px);opacity:0}30%{opacity:1}100%{transform:translateY(12px);opacity:0}}
+@keyframes dash{to{stroke-dashoffset:-16}}
+@keyframes glint{0%,100%{opacity:0}50%{opacity:.35}}
+@keyframes puff{0%{transform:translate(0,0) scale(.6);opacity:.85}100%{transform:translate(-14px,-36px) scale(2.2);opacity:0}}
+@keyframes shake{0%{transform:translateX(-1px)}50%{transform:translateX(1px)}100%{transform:translateX(-1px)}}
+
+@media (max-width:900px){
+  .stage{grid-template-columns:1fr}
+  .eng-grid{grid-template-columns:1fr}
+}
+@media (max-width:760px){
+  .board{grid-template-columns:repeat(4,minmax(0,1fr));row-gap:10px;padding:0 10px}
+  .card h2{font-size:27px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="top">
+  <div>
+    <h1>Power cut!</h1>
+    <p class="lede">Can you get your home running again without tripping the inverter?</p>
+  </div>
+  <div class="controls">
+    <div class="seg" role="group" aria-label="Time of the power cut">
+      <button type="button" data-mode="noon" aria-pressed="true">Noon</button>
+      <button type="button" data-mode="night" aria-pressed="false">Night</button>
+    </div>
+    <button type="button" class="btn-quiet" id="btn-sound" aria-pressed="true">Sound on</button>
+    <button type="button" class="btn" id="btn-reset">Start over</button>
+  </div>
+</header>
+
+<main class="stage">
+  <div class="scene-wrap">
+    <svg id="scene" class="is-noon" viewBox="0 0 800 450" role="img" aria-labelledby="scene-t">
+      <title id="scene-t">A cut-away house with lights, fans, a TV, a fridge and an AC, an inverter with its battery, rooftop solar panels, a water tank and pump, a generator and the mains pole.</title>
+      <defs>
+        <linearGradient id="gNight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#18213D"/><stop offset="1" stop-color="#37476F"/></linearGradient>
+        <linearGradient id="gNoon" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7DC3EA"/><stop offset="1" stop-color="#DAF0F8"/></linearGradient>
+        <radialGradient id="gGlow"><stop offset="0" stop-color="#FFE08A" stop-opacity=".95"/><stop offset=".5" stop-color="#FFE08A" stop-opacity=".35"/><stop offset="1" stop-color="#FFE08A" stop-opacity="0"/></radialGradient>
+        <clipPath id="cRooms"><rect x="160" y="160" width="172" height="232"/><rect x="340" y="160" width="120" height="232"/><rect x="468" y="160" width="122" height="232"/></clipPath>
+        <mask id="mMoon"><rect width="800" height="450" fill="#fff"/><circle cx="107" cy="54" r="20" fill="#000"/></mask>
+      </defs>
+
+      <rect width="800" height="450" fill="url(#gNight)"/>
+      <rect class="sky-noon" width="800" height="450" fill="url(#gNoon)"/>
+      <g class="stars" fill="#F4EFD9">
+        <circle cx="190" cy="40" r="1.6"/><circle cx="262" cy="74" r="1.2"/><circle cx="335" cy="30" r="1.8"/><circle cx="420" cy="62" r="1.3"/><circle cx="560" cy="36" r="1.7"/>
+        <circle cx="640" cy="78" r="1.2"/><circle cx="702" cy="40" r="1.6"/><circle cx="766" cy="96" r="1.3"/><circle cx="610" cy="118" r="1.1"/><circle cx="745" cy="150" r="1.4"/>
+      </g>
+      <circle class="moon" cx="95" cy="62" r="24" fill="#F1EAD2" mask="url(#mMoon)"/>
+      <g class="sun">
+        <g stroke="#FFC83D" stroke-width="4" stroke-linecap="round">
+          <line x1="95" y1="18" x2="95" y2="28"/><line x1="95" y1="96" x2="95" y2="106"/><line x1="51" y1="62" x2="61" y2="62"/><line x1="129" y1="62" x2="139" y2="62"/>
+          <line x1="64" y1="31" x2="71" y2="38"/><line x1="119" y1="86" x2="126" y2="93"/><line x1="64" y1="93" x2="71" y2="86"/><line x1="119" y1="38" x2="126" y2="31"/>
+        </g>
+        <circle cx="95" cy="62" r="24" fill="#FFD34D"/>
+      </g>
+      <g class="clouds" fill="#FFFFFF" opacity=".9">
+        <ellipse cx="640" cy="66" rx="40" ry="14"/><ellipse cx="664" cy="55" rx="24" ry="15"/><ellipse cx="616" cy="59" rx="18" ry="11"/>
+      </g>
+      <path class="beam" d="M120 80 L205 106" fill="none" stroke="#FFC83D" stroke-width="3" stroke-dasharray="6 10" stroke-linecap="round"/>
+      <rect class="ground" x="0" y="400" width="800" height="50"/>
+
+      <!-- mains pole -->
+      <g id="sc-grid">
+        <rect x="36" y="160" width="7" height="240" fill="#6B5843"/>
+        <rect x="20" y="170" width="40" height="5" rx="1" fill="#6B5843"/>
+        <circle cx="24" cy="168" r="3" fill="#CFC8B8"/><circle cx="56" cy="168" r="3" fill="#CFC8B8"/>
+        <path class="wire" d="M56 170 Q 104 206 150 194" fill="none" stroke-width="2"/>
+        <g class="mains-x" stroke="#E8442E" stroke-width="4" stroke-linecap="round"><line x1="95" y1="183" x2="111" y2="199"/><line x1="111" y1="183" x2="95" y2="199"/></g>
+        <text id="mains-label" class="mains-label" x="8" y="150">Mains on</text>
+      </g>
+
+      <!-- generator -->
+      <g id="sc-gen" transform="translate(52 346)">
+        <g class="smoke" fill="#B9BEC5">
+          <circle class="puff" cx="63" cy="-6" r="5"/><circle class="puff" cx="63" cy="-6" r="5"/><circle class="puff" cx="63" cy="-6" r="5"/>
+        </g>
+        <g class="gen-body">
+          <rect x="60" y="0" width="6" height="14" fill="#4A4F57"/>
+          <rect x="0" y="10" width="78" height="40" rx="5" fill="#2F6B4F"/>
+          <g stroke="#24563F" stroke-width="3"><line x1="10" y1="20" x2="10" y2="40"/><line x1="17" y1="20" x2="17" y2="40"/><line x1="24" y1="20" x2="24" y2="40"/><line x1="31" y1="20" x2="31" y2="40"/></g>
+          <rect x="44" y="18" width="24" height="12" rx="2" fill="#E9ECEE"/>
+          <circle class="gen-led" cx="56" cy="38" r="3.5"/>
+          <rect x="4" y="50" width="12" height="4" fill="#3B3F45"/><rect x="62" y="50" width="12" height="4" fill="#3B3F45"/>
+        </g>
+      </g>
+
+      <!-- house -->
+      <g id="house">
+        <rect x="150" y="150" width="450" height="250" fill="#B7A385"/>
+        <rect x="144" y="138" width="462" height="14" rx="2" fill="#A48F6C"/>
+        <rect class="room" x="160" y="160" width="172" height="232"/>
+        <rect class="room" x="340" y="160" width="120" height="232"/>
+        <rect class="room" x="468" y="160" width="122" height="232"/>
+        <g clip-path="url(#cRooms)">
+          <circle class="glow" cx="195" cy="192" r="90" fill="url(#gGlow)"/>
+          <circle class="glow" cx="400" cy="192" r="80" fill="url(#gGlow)"/>
+          <circle class="glow" cx="560" cy="192" r="85" fill="url(#gGlow)"/>
+        </g>
+        <rect x="160" y="392" width="430" height="8" fill="#6F5B45"/>
+
+        <g>
+          <line x1="195" y1="160" x2="195" y2="177" stroke="#59616E" stroke-width="2"/><circle class="bulb" cx="195" cy="184" r="7"/>
+          <line x1="400" y1="160" x2="400" y2="177" stroke="#59616E" stroke-width="2"/><circle class="bulb" cx="400" cy="184" r="7"/>
+          <line x1="572" y1="160" x2="572" y2="177" stroke="#59616E" stroke-width="2"/><circle class="bulb" cx="572" cy="184" r="7"/>
+        </g>
+
+        <g>
+          <line x1="275" y1="160" x2="275" y2="172" stroke="#59616E" stroke-width="3"/>
+          <rect class="blades" x="233" y="173" width="84" height="5" rx="2.5" fill="#59616E"/>
+          <circle cx="275" cy="175.5" r="5" fill="#454C57"/>
+        </g>
+        <g>
+          <line x1="515" y1="160" x2="515" y2="172" stroke="#59616E" stroke-width="3"/>
+          <rect class="blades" x="477" y="173" width="76" height="5" rx="2.5" fill="#59616E"/>
+          <circle cx="515" cy="175.5" r="5" fill="#454C57"/>
+        </g>
+
+        <!-- inverter and battery -->
+        <g id="sc-inverter">
+          <rect x="168" y="316" width="36" height="40" rx="4" fill="#EEF0F2" stroke="#9AA3AE"/>
+          <rect x="174" y="322" width="24" height="9" rx="2" fill="#2B3A2A"/>
+          <circle id="inv-led" cx="186" cy="345" r="4"/>
+          <rect x="176" y="356" width="6" height="4" fill="#9AA3AE"/><rect x="190" y="356" width="6" height="4" fill="#9AA3AE"/>
+          <rect x="168" y="360" width="36" height="32" rx="3" fill="#2E3D59"/>
+          <rect x="174" y="368" width="24" height="4" rx="2" fill="#4F6487"/>
+        </g>
+
+        <!-- TV and router -->
+        <rect x="222" y="352" width="100" height="40" rx="3" fill="#8A6A4F"/>
+        <rect x="268" y="344" width="8" height="8" fill="#3A3F48"/>
+        <rect x="240" y="298" width="64" height="46" rx="3" fill="#1B1E24"/>
+        <rect class="tv-screen" x="244" y="302" width="56" height="38" rx="1"/>
+        <rect x="306" y="343" width="16" height="9" rx="2" fill="#E9ECEE"/>
+        <circle class="router-led" cx="317" cy="347.5" r="2"/>
+
+        <!-- kitchen -->
+        <rect x="348" y="262" width="48" height="130" rx="5" fill="#D7DDE2" stroke="#A9B3BC"/>
+        <line x1="348" y1="300" x2="396" y2="300" stroke="#A9B3BC" stroke-width="2"/>
+        <rect x="386" y="272" width="4" height="18" rx="2" fill="#8D98A3"/><rect x="386" y="308" width="4" height="30" rx="2" fill="#8D98A3"/>
+        <circle class="fridge-led" cx="358" cy="272" r="3"/>
+        <rect x="404" y="342" width="50" height="50" fill="#8A6A4F"/><rect x="401" y="336" width="56" height="7" rx="2" fill="#6E5139"/>
+
+        <!-- bedroom -->
+        <rect x="476" y="198" width="84" height="24" rx="5" fill="#F4F6F7" stroke="#B8C0C8"/>
+        <line x1="482" y1="216" x2="554" y2="216" stroke="#B8C0C8" stroke-width="2"/>
+        <circle class="ac-led" cx="550" cy="205" r="2.5"/>
+        <g class="air" fill="none" stroke="#8FD3F4" stroke-width="2.5" stroke-linecap="round">
+          <path d="M494 228 c5 5 -5 9 0 14"/><path d="M518 228 c5 5 -5 9 0 14"/><path d="M542 228 c5 5 -5 9 0 14"/>
+        </g>
+        <rect x="478" y="364" width="104" height="28" rx="3" fill="#6D4C7D"/>
+        <rect x="480" y="352" width="100" height="16" rx="4" fill="#ECE6F3"/>
+        <rect x="485" y="344" width="26" height="11" rx="4" fill="#FFFFFF"/>
+      </g>
+
+      <!-- rooftop solar -->
+      <g id="sc-solar">
+        <polygon class="pv" points="172,138 188,106 246,106 230,138"/>
+        <polygon class="pv" points="250,138 266,106 324,106 308,138"/>
+        <polygon class="pv" points="328,138 344,106 402,106 386,138"/>
+        <g stroke="#86A6CF" stroke-width="1" opacity=".55">
+          <line x1="217" y1="106" x2="201" y2="138"/><line x1="180" y1="122" x2="238" y2="122"/>
+          <line x1="295" y1="106" x2="279" y2="138"/><line x1="258" y1="122" x2="316" y2="122"/>
+          <line x1="373" y1="106" x2="357" y2="138"/><line x1="336" y1="122" x2="394" y2="122"/>
+        </g>
+        <g class="glint" fill="#FFFFFF">
+          <polygon points="196,108 204,108 190,136 182,136"/><polygon points="274,108 282,108 268,136 260,136"/><polygon points="352,108 360,108 346,136 338,136"/>
+        </g>
+      </g>
+
+      <!-- water tank, pipe, pump -->
+      <g id="sc-tank">
+        <rect x="476" y="96" width="52" height="42" rx="8" fill="#2A2A2A"/>
+        <rect x="474" y="92" width="56" height="7" rx="3" fill="#353535"/>
+        <g stroke="#3D3D3D" stroke-width="2"><line x1="478" y1="108" x2="526" y2="108"/><line x1="478" y1="120" x2="526" y2="120"/></g>
+        <rect x="512" y="102" width="8" height="32" rx="2" fill="#101418"/>
+        <rect id="tank-level" x="513" y="120" width="6" height="14" fill="#4FB3E8"/>
+      </g>
+      <path d="M642 372 V128 H528" fill="none" stroke="#9AA1A9" stroke-width="6" stroke-linejoin="round"/>
+      <path class="flow" d="M642 372 V128 H528" fill="none" stroke="#4FB3E8" stroke-width="2.5" stroke-dasharray="6 10"/>
+      <g id="sc-pump">
+        <rect x="620" y="392" width="46" height="8" fill="#3B3F45"/>
+        <rect x="622" y="368" width="34" height="26" rx="5" fill="#2F68B0"/>
+        <g stroke="#24528C" stroke-width="2"><line x1="628" y1="372" x2="628" y2="390"/><line x1="634" y1="372" x2="634" y2="390"/><line x1="640" y1="372" x2="640" y2="390"/></g>
+        <rect x="656" y="374" width="10" height="14" rx="2" fill="#5A88C6"/>
+      </g>
+    </svg>
+    <p id="msg" class="msg" role="status" aria-live="polite">Your home is running on mains power.</p>
+  </div>
+
+  <aside class="panel" aria-label="Inverter display">
+    <p class="panel-title">Home inverter <span>2,000 W max</span></p>
+    <svg class="dial" viewBox="0 0 200 116" aria-hidden="true">
+      <path id="arc-g" fill="none" stroke="#1FA457" stroke-width="14"/>
+      <path id="arc-a" fill="none" stroke="#E39A0B" stroke-width="14"/>
+      <path id="arc-r" fill="none" stroke="#E8442E" stroke-width="14"/>
+      <text x="20" y="114" class="dial-t" text-anchor="middle">0</text>
+      <text x="180" y="114" class="dial-t" text-anchor="middle">150 %</text>
+      <g id="needle"><line x1="100" y1="100" x2="100" y2="34" stroke="#1E2A3A" stroke-width="4" stroke-linecap="round"/><circle cx="100" cy="100" r="7" fill="#1E2A3A"/></g>
+    </svg>
+    <p class="dial-num"><span id="d-val">–</span><span class="unit">%</span></p>
+    <p class="dial-cap" id="d-cap">Mains power is on</p>
+    <div class="lcd">
+      <div class="row"><span>Battery</span><b id="v-batt">70 %</b></div>
+      <div class="bar"><i id="b-batt"></i></div>
+      <div class="row"><span>Sunlight</span><b id="v-sun">Sunny</b></div>
+      <div class="row"><span>Generator</span><b id="v-gen">Off</b></div>
+      <div class="row"><span>Diesel burned</span><b id="v-dsl">0 mL</b></div>
+      <div class="row"><span>Home running</span><b id="v-home">6 of 6</b></div>
+      <div class="bar"><i id="b-home"></i></div>
+      <div class="row"><span>Time</span><b id="v-time">0.0 s</b></div>
+      <div class="row"><span>Trips</span><b id="v-trips">0</b></div>
+    </div>
+  </aside>
+</main>
+
+<section class="board-wrap" aria-label="Switchboard">
+  <div class="plate"><div class="board" id="board"></div></div>
+  <div class="board-actions">
+    <button type="button" class="btn warn" id="btn-all">Switch everything on at once</button>
+    <button type="button" class="btn primary" id="btn-smart">Let the smart controller try</button>
+  </div>
+  <ol class="ribbon" id="ribbon" aria-label="Smart controller's order" hidden></ol>
+</section>
+
+<details class="engineer" id="eng">
+  <summary>Engineer view: what is really happening</summary>
+  <div class="eng-grid">
+    <div>
+      <h3>Where we are in the black start</h3>
+      <ol class="stages">
+        <li data-st="0">Normal: mains power on</li>
+        <li data-st="1">Blackout: everything off</li>
+        <li data-st="2">Inverter builds the voltage (grid-forming)</li>
+        <li data-st="3">Loads and sources switched back, one at a time</li>
+        <li data-st="4">Everything restored</li>
+      </ol>
+      <h3>From this game to the research</h3>
+      <table class="map">
+        <tr><th>Home inverter and battery</th><td>Battery energy storage (BESS) forming the grid</td></tr>
+        <tr><th>Appliances</th><td>The microgrid's loads</td></tr>
+        <tr><th>Rooftop solar</th><td>PV array: it follows an existing voltage, so it cannot restart the system alone</td></tr>
+        <tr><th>Generator</th><td>Diesel generator (DG)</td></tr>
+        <tr><th>Inverter dial</th><td>Voltage and frequency staying within limits</td></tr>
+        <tr><th>Waiting for the dial to settle</th><td>Settle time (0.2 s) and minimum gap (0.5 s) between switchings</td></tr>
+        <tr><th>Smart controller's search</th><td>Search over every switching order (5,040 for the research microgrid)</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3>Live signals</h3>
+      <canvas id="chart" role="img" aria-label="Voltage, frequency and power over the last 30 seconds"></canvas>
+      <p class="small">A simplified teaching model, not the full Simulink model. Voltage = 1 − 0.08 × inverter load and frequency = 50 − 0.5 × inverter load (droop style). Start-up jolts fade with a 0.5 s time constant. The inverter trips above 125 % at once, or above 100 % for 1 s. One second of game time uses one minute of battery.</p>
+    </div>
+  </div>
+</details>
+
+<footer class="foot">
+  <p>A simplified teaching game based on microgrid black-start research at the SPEL Lab, IIT Gandhinagar.</p>
+</footer>
+</div>
+
+<!-- intro -->
+<div class="overlay" id="intro" role="dialog" aria-modal="true" aria-labelledby="intro-h">
+  <div class="card">
+    <h2 id="intro-h">The power is about to go out.</h2>
+    <p>When it does, your home inverter takes over. It can give only 2,000 W. Switch on too much at once and it beeps and shuts down. You have probably heard that beep at home.</p>
+    <p><strong>Your job:</strong> get all six appliances running again, as fast as you can, without tripping the inverter.</p>
+    <div class="pick"><span>When does the power cut happen?</span>
+      <div class="seg" role="group" aria-label="Time of the power cut">
+        <button type="button" data-mode="noon" aria-pressed="true">Noon, sunny</button>
+        <button type="button" data-mode="night" aria-pressed="false">Night</button>
+      </div>
+    </div>
+    <button type="button" class="btn primary big" id="btn-start">Cut the power</button>
+  </div>
+</div>
+
+<!-- smart controller planning -->
+<div class="overlay" id="search" role="dialog" aria-modal="true" aria-labelledby="search-h" hidden>
+  <div class="card">
+    <h2 id="search-h">The smart controller is planning</h2>
+    <p>Before touching a single switch, it tries every possible order on a copy of your home and keeps the best one.</p>
+    <div class="progress"><i id="s-bar"></i></div>
+    <p class="count"><b id="s-count">0</b> of <span id="s-total">45,360</span> orders checked. <b id="s-ok">0</b> of them get everything running without a trip.</p>
+    <div id="s-best" hidden>
+      <p><strong>Best order found:</strong></p>
+      <ol class="chips" id="s-order"></ol>
+    </div>
+  </div>
+</div>
+
+<!-- results -->
+<div class="overlay" id="result" role="dialog" aria-modal="true" aria-labelledby="res-h" hidden>
+  <div class="card wide">
+    <h2 id="res-h"></h2>
+    <table class="compare">
+      <thead><tr><th scope="col"><span class="sr">Measure</span></th><th scope="col">You</th><th scope="col">Smart controller</th></tr></thead>
+      <tbody id="res-body"></tbody>
+    </table>
+    <p id="res-note"></p>
+    <div id="res-order-wrap" hidden>
+      <p class="small">The smart controller's order:</p>
+      <ol class="chips" id="res-order"></ol>
+    </div>
+    <div class="actions">
+      <button type="button" class="btn primary" id="btn-smart2">Watch the smart controller</button>
+      <button type="button" class="btn" id="btn-again">Play again</button>
+      <button type="button" class="btn" id="btn-other">Try it at night</button>
+    </div>
+    <section class="twist">
+      <h3>Same problem, bigger scale</h3>
+      <p>When a whole microgrid blacks out (a campus, a village, a factory), a large battery plays the part of your inverter. Buildings, solar panels and a diesel generator must come back one at a time, in the right order, without pushing voltage and frequency outside safe limits.</p>
+      <p>Our research at the SPEL Lab, IIT Gandhinagar, lets an algorithm choose that order automatically after a blackout: the most load back in the least time, using the most sunlight and the least diesel.</p>
+    </section>
+  </div>
+</div>
+
+<script>
+(() => {
+'use strict';
+
+/* ================= SETTINGS: change the numbers here ================= */
+const CFG = {
+  invMax: 2000,        // inverter limit (W)
+  tripInstant: 1.25,   // trips at once above 125 %
+  overloadTime: 1.0,   // or above 100 % for this long (s)
+  surgeTau: 0.5,       // how fast start-up jolts fade (s)
+  settleW: 40,         // jolt below this = settled (W)
+  settle: 0.2,         // smart controller: settled for this long (s)
+  gap: 0.5,            // smart controller: minimum gap between switchings (s)
+  holdTime: 1.0,       // everything on and calm for this long = done (s)
+  sunNoon: 1200,       // solar power at noon (W)
+  chargeMax: 800,      // battery charging limit from solar (W)
+  dgMax: 1500,         // generator limit (W)
+  dgCrank: 3.0,        // generator start-up time (s)
+  dgTau: 1.0,          // generator response time (s)
+  dgReserve: 600,      // generator leaves this much load on the inverter (W)
+  dgIdle: 0.4,         // diesel at idle (L/h)
+  dgPerKw: 0.25,       // extra diesel per kW (L/h)
+  battWh: 4000,        // battery size (Wh)
+  soc0: 70,            // battery at the start (%)
+  socMin: 10,          // inverter shuts down below this (%)
+  timeScale: 60,       // 1 s of game = 60 s of battery use
+  cutTime: 1.0, bootTime: 1.5, restartCut: 1.0, restartBoot: 2.0,
+  horizon: 30,         // comfort, sunlight and diesel are scored over the first 30 s
+  roundLimit: 60       // a round ends after 60 s
+};
+
+const ITEMS = [
+  { id:'lights', name:'Lights',        short:'lights',     p:80,   surge:0,    icon:'bulb'   },
+  { id:'fans',   name:'Fans',          short:'fans',       p:150,  surge:100,  icon:'fan'    },
+  { id:'tv',     name:'TV & Wi-Fi',    short:'TV',         p:120,  surge:0,    icon:'tv'     },
+  { id:'fridge', name:'Fridge',        short:'fridge',     p:200,  surge:600,  icon:'fridge' },
+  { id:'pump',   name:'Water pump',    short:'water pump', p:750,  surge:1500, icon:'drop'   },
+  { id:'ac',     name:'AC',            short:'AC',         p:1000, surge:500,  icon:'snow'   },
+  { id:'solar',  name:'Rooftop solar', short:'solar',      p:0,    surge:0,    icon:'sun'    },
+  { id:'gen',    name:'Generator',     short:'generator',  p:0,    surge:0,    icon:'gen'    }
+];
+/* ===================================================================== */
+
+const NL = 6, SOLAR = 6, GEN = 7;
+const TOTAL_LOAD = ITEMS.slice(0, NL).reduce((a, it) => a + it.p, 0);
+const DT = 0.05;
+const DEC_SURGE = Math.exp(-DT / CFG.surgeTau);
+const DG_ALPHA = 1 - Math.exp(-DT / CFG.dgTau);
+const mlPerS = lph => lph * CFG.timeScale / 3600 * 1000;
+
+const $ = q => document.querySelector(q);
+const $$ = q => Array.from(document.querySelectorAll(q));
+const fmt = n => Math.round(n).toLocaleString('en-IN');
+const kW = w => (w / 1000).toFixed(1);
+
+/* ---------------- simulation ---------------- */
+function newState(mode) {
+  return {
+    mode, t: 0, phase: 'cut', phaseLeft: CFG.cutTime, bootDur: CFG.bootTime,
+    on: [false, false, false, false, false, false, false, false],
+    surge: [0, 0, 0, 0, 0, 0],
+    dgOut: 0, dgCrank: 0, dgRate: 0,
+    soc: CFG.soc0, overAcc: 0, trips: 0, tripReason: null, lastOn: -1,
+    sunAvail: mode === 'noon' ? CFG.sunNoon : 0,
+    tReady: null, comfortInt: 0, sunUsedInt: 0, sunAvailInt: 0, dieselMl: 0, dieselTot: 0,
+    allOnSince: null, holdT: 0, done: false, restoreTime: null, k: 0,
+    out: { load: 0, surge: 0, sunUsed: 0, inv: 0, frac: 0, V: 0, f: 0, healthy: false }
+  };
+}
+function loadOn(s) { let p = 0; for (let i = 0; i < NL; i++) if (s.on[i]) p += ITEMS[i].p; return p; }
+function restoredFrac(s) { return loadOn(s) / TOTAL_LOAD; }
+function countOn(s) { let n = 0; for (let i = 0; i < NL; i++) if (s.on[i]) n++; return n; }
+
+function switchOn(s, i) {
+  if (s.phase !== 'run' || s.on[i]) return false;
+  s.on[i] = true; s.lastOn = i;
+  if (i < NL) s.surge[i] = ITEMS[i].surge;
+  if (i === GEN) { s.dgCrank = CFG.dgCrank; s.dgOut = 0; }
+  return true;
+}
+function switchOff(s, i) {
+  if (!s.on[i]) return false;
+  s.on[i] = false;
+  if (i < NL) s.surge[i] = 0;
+  if (i === GEN) { s.dgOut = 0; s.dgCrank = 0; }
+  return true;
+}
+function trip(s, reason) {
+  s.trips++; s.tripReason = reason;
+  s.phase = 'cut'; s.phaseLeft = CFG.restartCut; s.bootDur = CFG.restartBoot;
+  for (let i = 0; i < 8; i++) s.on[i] = false;
+  for (let i = 0; i < NL; i++) s.surge[i] = 0;
+  s.dgOut = 0; s.dgCrank = 0; s.dgRate = 0; s.overAcc = 0; s.allOnSince = null; s.holdT = 0;
+  const o = s.out; o.load = 0; o.surge = 0; o.sunUsed = 0; o.inv = 0; o.frac = 0; o.V = 0; o.f = 0; o.healthy = false;
+}
+function accumulate(s) {
+  if (s.tReady === null) return;
+  if (s.t - s.tReady > CFG.horizon + 1e-9) return;
+  s.comfortInt += restoredFrac(s) * DT;
+  s.sunUsedInt += s.out.sunUsed * DT;
+  s.sunAvailInt += s.sunAvail * DT;
+  s.dieselMl += mlPerS(s.dgRate) * DT;
+}
+function step(s) {
+  s.t += DT;
+  const o = s.out;
+  if (s.phase !== 'run') {
+    s.phaseLeft -= DT;
+    o.load = 0; o.surge = 0; o.sunUsed = 0; o.inv = 0; o.frac = 0; o.healthy = false; s.dgRate = 0;
+    if (s.phase === 'cut') {
+      o.V = 0; o.f = 0;
+      if (s.phaseLeft <= 1e-9) { s.phase = 'boot'; s.phaseLeft = s.bootDur; }
+    } else {
+      o.V = Math.min(1, Math.max(0, 1 - s.phaseLeft / s.bootDur)); o.f = 50;
+      if (s.phaseLeft <= 1e-9) { s.phase = 'run'; o.V = 1; if (s.tReady === null) s.tReady = s.t; }
+    }
+    accumulate(s);
+    return;
+  }
+  let load = 0, surge = 0, maxSurge = 0;
+  for (let i = 0; i < NL; i++) {
+    if (s.on[i]) {
+      load += ITEMS[i].p;
+      s.surge[i] *= DEC_SURGE;
+      surge += s.surge[i];
+      if (s.surge[i] > maxSurge) maxSurge = s.surge[i];
+    }
+  }
+  let sunUsed = 0;
+  if (s.on[SOLAR] && s.sunAvail > 0) {
+    const charge = s.soc < 95 ? CFG.chargeMax : 0;
+    sunUsed = Math.min(s.sunAvail, load + charge);
+  }
+  s.dgRate = 0;
+  if (s.on[GEN]) {
+    if (s.dgCrank > 0) {
+      s.dgCrank = Math.max(0, s.dgCrank - DT); s.dgOut = 0; s.dgRate = CFG.dgIdle;
+    } else {
+      const target = Math.min(CFG.dgMax, Math.max(0, load - Math.min(sunUsed, load) - CFG.dgReserve));
+      s.dgOut += (target - s.dgOut) * DG_ALPHA;
+      s.dgRate = CFG.dgIdle + CFG.dgPerKw * s.dgOut / 1000;
+    }
+    s.dieselTot += mlPerS(s.dgRate) * DT;
+  }
+  const inv = load + surge - sunUsed - s.dgOut;      // negative = battery charging
+  const frac = Math.max(0, inv) / CFG.invMax;
+  s.soc = Math.min(100, Math.max(0, s.soc - inv * DT * CFG.timeScale / 3600 / CFG.battWh * 100));
+  s.overAcc = frac > 1 ? s.overAcc + DT : Math.max(0, s.overAcc - DT);
+  o.load = load; o.surge = surge; o.sunUsed = sunUsed; o.inv = inv; o.frac = frac;
+  o.V = 1 - 0.08 * frac; o.f = 50 - 0.5 * frac;
+  o.healthy = frac <= 1 && maxSurge < CFG.settleW;
+
+  if (frac > CFG.tripInstant || s.overAcc > CFG.overloadTime) {
+    const steady = Math.max(0, load - Math.min(sunUsed, load) - s.dgOut) / CFG.invMax;
+    trip(s, steady > 1 ? 'steady' : 'kick');
+    return;
+  }
+  if (s.soc <= CFG.socMin) { trip(s, 'battery'); return; }
+  accumulate(s);
+
+  if (countOn(s) === NL) {
+    if (s.allOnSince === null) s.allOnSince = s.t;
+    s.holdT = o.healthy ? s.holdT + DT : 0;
+    if (!s.done && s.holdT >= CFG.holdTime - 1e-9) { s.done = true; s.restoreTime = s.allOnSince - s.tReady; }
+  } else { s.allOnSince = null; s.holdT = 0; }
+}
+function finalize(s) {
+  const el = s.tReady === null ? 0 : Math.min(CFG.horizon, s.t - s.tReady);
+  const rem = Math.max(0, CFG.horizon - el);
+  const comfort = (s.comfortInt + rem * restoredFrac(s)) / CFG.horizon * 100;
+  const sunAvail = s.sunAvailInt + rem * s.sunAvail;
+  const sunPct = sunAvail > 0 ? (s.sunUsedInt + rem * s.out.sunUsed) / sunAvail * 100 : null;
+  const diesel = s.dieselMl + rem * mlPerS(s.dgRate);
+  return { done: s.done, restoreTime: s.restoreTime, trips: s.trips, comfort, sunPct, diesel, count: countOn(s) };
+}
+const score = r => r.comfort + 0.1 * (r.sunPct || 0) - 0.03 * r.diesel;
+
+/* rule-based controller: same idea as the Scenario Manager */
+function newCtl() { return { k: 0, tLast: null, okSince: -1 }; }
+function smartControl(s, order, c) {
+  if (s.done || s.phase !== 'run' || c.k >= order.length) return;
+  if (c.tLast === null) c.tLast = s.t;
+  if (s.out.healthy) { if (c.okSince < 0) c.okSince = s.t; } else c.okSince = -1;
+  const settled = c.okSince >= 0 && (s.t - c.okSince) >= CFG.settle - 1e-9;
+  if (settled && (s.t - c.tLast) >= CFG.gap - 1e-9) {
+    switchOn(s, order[c.k]); c.k++; c.tLast = s.t; c.okSince = -1;
+  }
+}
+function runOrder(order, mode) {
+  const s = newState(mode), c = newCtl();
+  for (let n = 0; n < 1600; n++) {
+    step(s);
+    if (s.trips > 0) return null;
+    smartControl(s, order, c);
+    if (s.done) { s.k = c.k; return s; }
+    if (s.tReady !== null && s.t - s.tReady >= CFG.horizon) return null;
+  }
+  return null;
+}
+function permutations(a) {
+  const arr = a.slice(), n = arr.length, c = new Array(n).fill(0), out = [arr.slice()];
+  let i = 1;
+  while (i < n) {
+    if (c[i] < i) {
+      const j = i % 2 === 0 ? 0 : c[i];
+      const t = arr[j]; arr[j] = arr[i]; arr[i] = t;
+      out.push(arr.slice()); c[i]++; i = 1;
+    } else { c[i] = 0; i++; }
+  }
+  return out;
+}
+let PERMS = null;
+function optimize(mode, token, onProgress, onDone) {
+  if (app.best[mode]) { const b = app.best[mode]; onProgress(b.total, b.total, b.feasible); onDone(b); return; }
+  PERMS = PERMS || permutations([0, 1, 2, 3, 4, 5, SOLAR]);
+  const total = PERMS.length * 9;            // generator at any of 8 positions, or not used
+  let idx = 0, feasible = 0, best = null;
+  (function chunk() {
+    if (token !== app.token) return;
+    const t0 = performance.now();
+    while (idx < total && performance.now() - t0 < 25) {
+      const p = PERMS[(idx / 9) | 0], pos = idx % 9;
+      const order = pos === 8 ? p : p.slice(0, pos).concat([GEN], p.slice(pos));
+      const s = runOrder(order, mode);
+      if (s) {
+        feasible++;
+        const r = finalize(s), J = score(r);
+        if (!best || J > best.J + 1e-9) best = { order: order.slice(0, s.k), r, J };
+      }
+      idx++;
+    }
+    onProgress(idx, total, feasible);
+    if (idx < total) setTimeout(chunk, 0);
+    else { const res = best ? Object.assign({}, best, { total, feasible }) : null; if (res) app.best[mode] = res; onDone(res); }
+  })();
+}
+
+/* ---------------- sound ---------------- */
+let AC = null;
+function tone(freq, dur, vol, type) {
+  if (!app.sound) return;
+  try {
+    AC = AC || new (window.AudioContext || window.webkitAudioContext)();
+    if (AC.state === 'suspended') AC.resume();
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.type = type || 'square'; o.frequency.value = freq;
+    g.gain.setValueAtTime(vol || 0.04, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, AC.currentTime + dur);
+    o.connect(g); g.connect(AC.destination);
+    o.start(); o.stop(AC.currentTime + dur + 0.02);
+  } catch (e) { /* sound is optional */ }
+}
+const click = () => tone(900, 0.03, 0.05, 'triangle');
+const beep = () => tone(2700, 0.08, 0.03, 'square');
+const tripSound = () => tone(1500, 0.5, 0.045, 'square');
+const chime = () => { tone(880, 0.16, 0.05, 'sine'); setTimeout(() => tone(1320, 0.28, 0.05, 'sine'), 150); };
+
+/* ---------------- app state ---------------- */
+const app = {
+  mode: 'noon', state: 'intro', sound: true, token: 0,
+  water: 0.4, needle: 0, beepT: 0, hist: [],
+  results: { noon: { you: null, smart: null }, night: { you: null, smart: null } },
+  best: {}
+};
+let live = null;
+
+const ICONS = {
+  bulb: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.7.6 1.1 1.4 1.1 2.2h5c0-.8.4-1.6 1.1-2.2A6 6 0 0 0 12 3z"/>',
+  fan: '<circle cx="12" cy="12" r="1.8"/><path d="M12 10.2c-.6-3.7.7-6.2 3-6.2 2 0 2.3 3.6-3 6.2zM13.6 12.9c3.4 1.6 4.6 4.3 3 5.8-1.4 1.3-4.2-1-3-5.8zM10.4 12.9c-3 2.3-5.9 2.2-6.4.1-.4-1.9 3.1-3.1 6.4-.1z"/>',
+  tv: '<rect x="3" y="5" width="18" height="12" rx="2"/><path d="M8 21h8M12 17v4"/>',
+  fridge: '<rect x="6" y="2.5" width="12" height="19" rx="2"/><path d="M6 10h12M9 5.5v2M9 13v3"/>',
+  drop: '<path d="M12 3s-6 6.5-6 11a6 6 0 0 0 12 0c0-4.5-6-11-6-11z"/>',
+  snow: '<path d="M12 2v20M3.5 7l17 10M20.5 7l-17 10M9.5 3.8 12 6l2.5-2.2M9.5 20.2 12 18l2.5 2.2"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+  gen: '<rect x="3" y="7" width="18" height="12" rx="2"/><path d="M13 9l-3 4h4l-3 4M7 7V5h4v2"/>'
+};
+function infoHTML(it, i) {
+  if (i === SOLAR) return `Up to ${fmt(CFG.sunNoon)} W in sun<span class="note">Works only once the inverter is on</span>`;
+  if (i === GEN) return `Up to ${fmt(CFG.dgMax)} W<span class="note">${CFG.dgCrank} s to start, burns diesel</span>`;
+  return `${fmt(it.p)} W` + (it.surge ? `<span class="kick">+${fmt(it.surge)} W jolt at start</span>` : '');
+}
+const SW = ITEMS.map((it, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = 'sw'; b.title = `Keyboard: ${i + 1}`;
+  b.setAttribute('aria-pressed', 'false');
+  b.innerHTML = `<span class="neon" aria-hidden="true"></span>`
+    + `<span class="rocker" aria-hidden="true"><span class="rk-top"></span><span class="rk-bot"></span></span>`
+    + `<span class="sw-name"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[it.icon]}</svg>${it.name}</span>`
+    + `<span class="sw-info">${infoHTML(it, i)}</span>`;
+  b.addEventListener('click', () => onSwitch(i));
+  $('#board').appendChild(b);
+  return b;
+});
+
+/* dial arcs: 0 to 150 % mapped over a half circle */
+function arc(p0, p1) {
+  const r = 80, a0 = Math.PI * (1 - p0 / 150), a1 = Math.PI * (1 - p1 / 150);
+  const x0 = 100 + r * Math.cos(a0), y0 = 100 - r * Math.sin(a0), x1 = 100 + r * Math.cos(a1), y1 = 100 - r * Math.sin(a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${r} ${r} 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+$('#arc-g').setAttribute('d', arc(0, 80));
+$('#arc-a').setAttribute('d', arc(80, 100));
+$('#arc-r').setAttribute('d', arc(100, 150));
+
+/* ---------------- messages ---------------- */
+function setMsg(text, tone) { const m = $('#msg'); m.textContent = text; m.className = 'msg ' + (tone || 'info'); }
+const ON_MSG = {
+  lights: 'Lights on. They hardly load the inverter.',
+  fans: 'Fans on. Small motors give a small jolt when they start.',
+  tv: 'TV and Wi-Fi are back.',
+  fridge: 'Fridge on. Its compressor gives a jolt at the start, then settles.',
+  pump: 'Water pump on. Motors pull a big extra jolt for a moment when they start.',
+  ac: 'AC on. It is the biggest load in the house.',
+  gen: `Generator starting. It needs ${CFG.dgCrank} seconds before it can help.`
+};
+
+/* ---------------- flow ---------------- */
+function showOverlay(id) {
+  ['intro', 'search', 'result'].forEach(k => { $('#' + k).hidden = (k !== id); });
+  if (id === 'intro') $('#btn-start').focus();
+  if (id === 'result') $('#btn-again').focus();
+}
+function setMode(m) {
+  app.mode = m;
+  $$('[data-mode]').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m ? 'true' : 'false'));
+  $('#btn-other').textContent = m === 'night' ? 'Try it at noon' : 'Try it at night';
+  toIntro();
+}
+function toIntro() {
+  app.token++; live = null; app.state = 'intro'; app.hist = [];
+  $('#ribbon').hidden = true;
+  setMsg('Your home is running on mains power.', 'info');
+  showOverlay('intro');
+}
+function startRound() {
+  app.token++;
+  live = { s: newState(app.mode), ctrl: 'player', allAt: null };
+  app.state = 'playing'; app.hist = [];
+  $('#ribbon').hidden = true;
+  showOverlay(null);
+  tone(220, 0.35, 0.05, 'triangle');
+  setMsg('Power cut! Everything is off. The inverter is waking up…', 'bad');
+}
+function onSwitch(i) {
+  if (app.state !== 'playing' || !live || live.ctrl !== 'player') return;
+  const s = live.s;
+  if (s.phase !== 'run') {
+    setMsg(s.phase === 'cut' ? 'Everything is dead right now. The inverter restarts in a moment.' : 'Wait a moment: the inverter is still building up the voltage.', 'warn');
+    return;
+  }
+  click();
+  if (s.on[i]) { switchOff(s, i); setMsg(`${ITEMS[i].name} switched off.`, 'info'); return; }
+  const unsettled = !s.out.healthy;
+  switchOn(s, i);
+  let m = ON_MSG[ITEMS[i].id] || '';
+  if (i === SOLAR) m = app.mode === 'night' ? 'Solar connected, but it is night: the panels have nothing to give.' : 'Rooftop solar connected. The sun now shares the load.';
+  if (unsettled && i < NL && ITEMS[i].surge > 0) m = 'Careful: the inverter had not settled from the last switch, so the jolts add up. ' + m;
+  setMsg(m, unsettled ? 'warn' : 'info');
+}
+function allAtOnce() {
+  if (app.state !== 'playing' || !live || live.ctrl !== 'player') return;
+  const s = live.s;
+  if (s.phase !== 'run') return;
+  click(); live.allAt = s.t;
+  for (let i = 0; i < 8; i++) switchOn(s, i);
+  setMsg('Everything on at once, just like when the power comes back at home…', 'warn');
+}
+function onTrip(s) {
+  tripSound();
+  let m;
+  if (live.allAt !== null && s.t - live.allAt < 2) {
+    m = 'Beep! Everything at once is exactly what trips inverters at home too: all the start-up jolts arrive together. Try one at a time.';
+    live.allAt = null;
+  } else if (s.tripReason === 'kick') {
+    const it = s.lastOn >= 0 ? ITEMS[s.lastOn] : null;
+    m = 'Beep! Too big a jolt at once, so the inverter shut down. ';
+    m += (it && it.surge >= 500) ? `The ${it.short} pulls a big extra jolt when it starts. Try starting it earlier, while little else is running.` : 'Wait for the dial to calm down between switches.';
+  } else if (s.tripReason === 'steady') {
+    m = 'Beep! The home needs more power than the inverter can give. ';
+    m += app.mode === 'night' ? `At night the generator can share the load. It needs ${CFG.dgCrank} seconds to start.` : 'Switch on the rooftop solar to share the load.';
+  } else {
+    m = 'The battery ran too low and the inverter shut down.';
+  }
+  setMsg(m + ' It restarts in a few seconds.', 'bad');
+}
+function onReady(s) {
+  if (live.ctrl === 'smart') { setMsg('Inverter ready. The smart controller follows its plan and waits for the dial to settle between switches.', 'info'); return; }
+  setMsg(s.trips ? 'The inverter restarted, but everything is off again. Try a different order.' : 'The inverter is on and your home has power again, but everything is off. Switch things on.', 'info');
+}
+function startSmart() {
+  const token = ++app.token;
+  app.state = 'search'; live = null;
+  $('#s-best').hidden = true; $('#s-bar').style.width = '0%'; $('#s-count').textContent = '0'; $('#s-ok').textContent = '0';
+  showOverlay('search');
+  optimize(app.mode, token,
+    (n, total, ok) => {
+      $('#s-count').textContent = fmt(n); $('#s-total').textContent = fmt(total); $('#s-ok').textContent = fmt(ok);
+      $('#s-bar').style.width = (n / total * 100).toFixed(1) + '%';
+    },
+    best => {
+      if (token !== app.token) return;
+      if (!best) { toIntro(); setMsg('The smart controller found no order that works with these settings.', 'bad'); return; }
+      $('#s-order').innerHTML = best.order.map(i => `<li>${ITEMS[i].name}</li>`).join('');
+      $('#s-best').hidden = false;
+      setTimeout(() => {
+        if (token !== app.token) return;
+        showOverlay(null);
+        live = { s: newState(app.mode), ctrl: 'smart', order: best.order, c: newCtl(), allAt: null };
+        app.state = 'smart'; app.hist = [];
+        const rb = $('#ribbon');
+        rb.innerHTML = best.order.map(i => `<li>${ITEMS[i].name}</li>`).join('');
+        rb.hidden = false;
+        tone(220, 0.35, 0.05, 'triangle');
+        setMsg('Power cut! The smart controller waits for the inverter, then follows its plan.', 'bad');
+      }, 1800);
+    });
+}
+function finish() {
+  const s = live.s, r = finalize(s), who = live.ctrl;
+  const R = app.results[app.mode];
+  if (who === 'player') R.you = r;
+  else { r.order = live.order.slice(0, live.c.k); R.smart = r; }
+  app.state = 'result';
+  if (r.done) { chime(); setMsg('All six appliances are running again.', 'good'); }
+  else setMsg('Time is up.', 'warn');
+  const token = app.token;
+  setTimeout(() => { if (token === app.token && app.state === 'result') showResults(who); }, 900);
+}
+function noteText(y, m) {
+  if (!y) return 'Play a round yourself and see if you can match it.';
+  if (!m) return 'Now watch a computer do it. It plans the whole order before touching a single switch.';
+  if (y.trips > 0) return `You tripped the inverter ${y.trips} time${y.trips > 1 ? 's' : ''}. The smart controller never does, because it checked every order in advance.`;
+  if (m.comfort - y.comfort > 1) return `No trips, well done. The smart controller still reached ${Math.round(m.comfort)} % comfort against your ${Math.round(y.comfort)} % by choosing the order carefully.`;
+  return 'No trips, and you matched the smart controller. Nicely done!';
+}
+function showResults(who) {
+  const R = app.results[app.mode], y = R.you, m = R.smart, r = who === 'player' ? y : m;
+  let h;
+  if (who === 'player') {
+    h = r.done ? (r.trips === 0 ? 'Home back on, without a single trip.' : `Home back on, after ${r.trips} trip${r.trips > 1 ? 's' : ''}.`)
+               : `Time is up: ${r.count} of 6 running.`;
+  } else h = r.done ? 'The smart controller got everything running.' : 'The smart controller ran out of time.';
+  $('#res-h').textContent = h;
+  const rows = [
+    ['Time to get all six running', x => x.done ? x.restoreTime.toFixed(1) + ' s' : 'Not finished'],
+    ['Times the inverter tripped', x => String(x.trips)],
+    ['Comfort in the first 30 s', x => Math.round(x.comfort) + ' %', 'How much of the home was running, on average'],
+    ['Sunlight used', x => x.sunPct === null ? 'No sun at night' : Math.round(x.sunPct) + ' %'],
+    ['Diesel burned', x => fmt(x.diesel) + ' mL']
+  ];
+  $('#res-body').innerHTML = rows.map(([label, f, hint]) =>
+    `<tr><th scope="row">${label}${hint ? `<small>${hint}</small>` : ''}</th><td>${y ? f(y) : '–'}</td><td>${m ? f(m) : '–'}</td></tr>`).join('');
+  $('#res-note').textContent = noteText(y, m);
+  if (m && m.order) { $('#res-order').innerHTML = m.order.map(i => `<li>${ITEMS[i].name}</li>`).join(''); $('#res-order-wrap').hidden = false; }
+  else $('#res-order-wrap').hidden = true;
+  $('#btn-smart2').hidden = !!m;
+  showOverlay('result');
+}
+
+/* ---------------- main loop ---------------- */
+function tick() {
+  const s = live.s;
+  const prevPhase = s.phase, prevTrips = s.trips;
+  step(s);
+  if (live.ctrl === 'smart' && s.trips === prevTrips) {
+    const k0 = live.c.k;
+    smartControl(s, live.order, live.c);
+    if (live.c.k > k0) { click(); setMsg(`Smart controller: ${ITEMS[live.order[live.c.k - 1]].name} on. Now it waits for the dial to settle.`, 'info'); }
+  }
+  app.water = Math.min(1, Math.max(0.05, app.water + (s.on[4] ? 0.05 : -0.004) * DT));
+  app.hist.push({ t: s.t, V: s.out.V, f: s.out.f, dem: s.out.load + s.out.surge, sun: s.out.sunUsed, dg: s.dgOut, inv: Math.max(0, s.out.inv) });
+  if (app.hist.length > 620) app.hist.shift();
+  if (s.trips > prevTrips) onTrip(s);
+  else if (prevPhase !== 'run' && s.phase === 'run') onReady(s);
+  if (s.phase === 'run' && s.out.frac > 1) { app.beepT -= DT; if (app.beepT <= 0) { beep(); app.beepT = 0.3; } } else app.beepT = 0;
+  if (s.done) finish();
+  else if (s.tReady !== null && s.t - s.tReady >= CFG.roundLimit) finish();
+}
+let acc = 0, lastTs = null;
+function loop(ts) {
+  if (lastTs === null) lastTs = ts;
+  let d = (ts - lastTs) / 1000; lastTs = ts;
+  if (d > 0.25) d = 0.25;
+  if (live && (app.state === 'playing' || app.state === 'smart')) {
+    acc += d;
+    while (acc >= DT) {
+      tick(); acc -= DT;
+      if (app.state !== 'playing' && app.state !== 'smart') { acc = 0; break; }
+    }
+  } else acc = 0;
+  render(d);
+  requestAnimationFrame(loop);
+}
+
+/* ---------------- drawing ---------------- */
+function setText(q, t) { const el = $(q); if (el.textContent !== t) el.textContent = t; }
+function setBar(q, pct) { $(q).style.width = Math.max(0, Math.min(100, pct)).toFixed(1) + '%'; }
+function render(d) {
+  const sc = $('#scene'), night = app.mode === 'night';
+  sc.classList.toggle('is-night', night); sc.classList.toggle('is-noon', !night);
+  const s = live ? live.s : null, normal = !s;
+  sc.classList.toggle('mains-on', normal);
+  ITEMS.forEach((it, i) => sc.classList.toggle('on-' + it.id, normal ? i !== GEN : s.on[i]));
+  sc.classList.toggle('gen-crank', !!(s && s.on[GEN] && s.dgCrank > 0));
+  sc.classList.toggle('gen-run', !!(s && s.on[GEN] && s.dgCrank <= 0));
+  sc.classList.toggle('sun-flow', normal ? !night : s.out.sunUsed > 1);
+  let led;
+  if (normal) led = 'inv-ok';
+  else if (s.phase === 'cut') led = 'inv-alarm';
+  else if (s.phase === 'boot') led = 'inv-busy';
+  else led = s.out.frac > 1 ? 'inv-alarm' : (s.out.healthy ? 'inv-ok' : 'inv-busy');
+  ['inv-ok', 'inv-busy', 'inv-alarm'].forEach(c => sc.classList.toggle(c, c === led));
+  const h = 32 * app.water, lv = $('#tank-level');
+  lv.setAttribute('y', (134 - h).toFixed(1)); lv.setAttribute('height', h.toFixed(1));
+  setText('#mains-label', normal ? 'Mains on' : 'Mains off');
+
+  /* inverter panel */
+  let pct = 0, val = '–', cap = 'Mains power is on', capCls = '';
+  if (s) {
+    if (s.phase === 'cut') { cap = 'No power'; val = '0'; }
+    else if (s.phase === 'boot') { cap = 'Starting up…'; val = '0'; }
+    else {
+      pct = s.out.frac * 100; val = String(Math.round(pct));
+      if (pct > 100) { cap = 'Overloaded: beeping!'; capCls = 'is-bad'; }
+      else if (pct > 80) { cap = 'Working hard'; capCls = 'is-warn'; }
+      else cap = s.out.healthy ? 'Comfortable' : 'Settling…';
+    }
+  }
+  app.needle += (Math.min(pct, 150) - app.needle) * Math.min(1, d * 12);
+  $('#needle').setAttribute('transform', `rotate(${(app.needle / 150 * 180 - 90).toFixed(1)} 100 100)`);
+  setText('#d-val', val); setText('#d-cap', cap);
+  $('#d-cap').className = 'dial-cap ' + capCls;
+  const soc = s ? s.soc : CFG.soc0;
+  setText('#v-batt', Math.round(soc) + ' %'); setBar('#b-batt', soc);
+  let sun;
+  if (night) sun = 'Night: no sun';
+  else if (!s) sun = 'Sunny';
+  else if (!s.on[SOLAR]) sun = 'Panels off';
+  else sun = `${kW(s.out.sunUsed)} of ${kW(s.sunAvail)} kW used`;
+  setText('#v-sun', sun);
+  let gen = 'Off';
+  if (s && s.on[GEN]) gen = s.dgCrank > 0 ? `Starting, ${Math.ceil(s.dgCrank)} s` : `${kW(s.dgOut)} kW`;
+  setText('#v-gen', gen);
+  setText('#v-dsl', s ? fmt(s.dieselTot) + ' mL' : '0 mL');
+  const n = s ? countOn(s) : 6;
+  setText('#v-home', `${n} of 6`); setBar('#b-home', (s ? restoredFrac(s) : 1) * 100);
+  setText('#v-time', (s && s.tReady !== null ? Math.max(0, s.t - s.tReady) : 0).toFixed(1) + ' s');
+  setText('#v-trips', s ? String(s.trips) : '0');
+
+  /* switches */
+  const playable = app.state === 'playing' && !!live && live.ctrl === 'player';
+  SW.forEach((b, i) => {
+    const on = s ? s.on[i] : i !== GEN;
+    b.classList.toggle('is-on', on);
+    b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    b.classList.toggle('is-busy', !!(s && i === GEN && s.on[GEN] && s.dgCrank > 0));
+    if (b.disabled === playable) b.disabled = !playable;
+  });
+  const allDis = !playable || s.phase !== 'run';
+  if ($('#btn-all').disabled !== allDis) $('#btn-all').disabled = allDis;
+  const smartDis = app.state === 'search' || app.state === 'smart';
+  if ($('#btn-smart').disabled !== smartDis) $('#btn-smart').disabled = smartDis;
+  if (live && live.ctrl === 'smart') $$('#ribbon li').forEach((li, i) => li.classList.toggle('done', i < live.c.k));
+
+  /* engineer view */
+  if ($('#eng').open) {
+    const st = !s ? 0 : s.phase === 'cut' ? 1 : s.phase === 'boot' ? 2 : s.done ? 4 : 3;
+    $$('.stages li').forEach(li => li.classList.toggle('is-now', +li.dataset.st === st));
+    drawChart();
+  }
+}
+function drawChart() {
+  const cv = $('#chart'), w = cv.clientWidth, h = cv.clientHeight;
+  if (!w || !h) return;
+  const dpr = window.devicePixelRatio || 1;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) { cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr); }
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, w, h);
+  const H = app.hist, tEnd = H.length ? H[H.length - 1].t : 30, t0 = tEnd - 30;
+  const L = 70, R = 84, top = 8, gap = 14, lh = (h - top - gap * 2 - 22) / 3;
+  const X = t => L + (t - t0) / 30 * (w - L - R);
+  const lanes = [
+    { label: 'Voltage', unit: 'pu', min: 0.85, max: 1.08, band: [0.92, 1.05], ticks: [0.92, 1.05], series: [['V', '#1E2A3A', '']] },
+    { label: 'Frequency', unit: 'Hz', min: 49.2, max: 50.3, band: [49.5, 50.5], ticks: [49.5, 50], series: [['f', '#1E2A3A', '']] },
+    { label: 'Power', unit: 'kW', min: 0, max: 5, ticks: [0, 2, 4], scale: 0.001,
+      series: [['dem', '#E8442E', 'Demand'], ['inv', '#2E5A96', 'Inverter'], ['sun', '#C98200', 'Solar'], ['dg', '#2F6B4F', 'Generator']] }
+  ];
+  ctx.font = '12px Hind, system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  lanes.forEach((ln, k) => {
+    const y0 = top + k * (lh + gap), y1 = y0 + lh;
+    const Y = v => y1 - (Math.min(ln.max, Math.max(ln.min, v)) - ln.min) / (ln.max - ln.min) * (y1 - y0);
+    ctx.fillStyle = '#F4F5F2'; ctx.fillRect(L, y0, w - L - R, lh);
+    if (ln.band) { const ya = Y(ln.band[1]), yb = Y(ln.band[0]); ctx.fillStyle = 'rgba(31,164,87,.15)'; ctx.fillRect(L, ya, w - L - R, yb - ya); }
+    ctx.fillStyle = '#4B5768'; ctx.textAlign = 'left';
+    ctx.fillText(ln.label, 4, y0 + 8); ctx.fillText(ln.unit, 4, y0 + 24);
+    ctx.textAlign = 'right';
+    ln.ticks.forEach(v => {
+      ctx.fillStyle = '#4B5768'; ctx.fillText(String(v), L - 6, Y(v));
+      ctx.strokeStyle = 'rgba(30,42,58,.12)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(L, Y(v)); ctx.lineTo(w - R, Y(v)); ctx.stroke();
+    });
+    ln.series.forEach(([key, col, name], j) => {
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath();
+      let started = false;
+      for (const p of H) {
+        if (p.t < t0) continue;
+        const x = X(p.t), y = Y(p[key] * (ln.scale || 1));
+        if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      if (name) { ctx.fillStyle = col; ctx.textAlign = 'left'; ctx.fillText(name, w - R + 8, y0 + 10 + j * 16); }
+    });
+  });
+  ctx.fillStyle = '#4B5768'; ctx.textAlign = 'center';
+  ctx.fillText('Last 30 s of game time', L + (w - L - R) / 2, h - 9);
+}
+
+/* ---------------- wiring ---------------- */
+$$('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+$('#btn-start').addEventListener('click', startRound);
+$('#btn-reset').addEventListener('click', toIntro);
+$('#btn-all').addEventListener('click', allAtOnce);
+$('#btn-smart').addEventListener('click', startSmart);
+$('#btn-smart2').addEventListener('click', startSmart);
+$('#btn-again').addEventListener('click', startRound);
+$('#btn-other').addEventListener('click', () => setMode(app.mode === 'night' ? 'noon' : 'night'));
+$('#btn-sound').addEventListener('click', e => {
+  app.sound = !app.sound;
+  e.currentTarget.setAttribute('aria-pressed', app.sound ? 'true' : 'false');
+  e.currentTarget.textContent = app.sound ? 'Sound on' : 'Sound off';
+});
+document.addEventListener('keydown', e => {
+  if (app.state !== 'playing' || e.ctrlKey || e.metaKey || e.altKey) return;
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 8) { e.preventDefault(); onSwitch(n - 1); }
+});
+
+showOverlay('intro');
+requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
